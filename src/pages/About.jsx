@@ -36,7 +36,7 @@ export default function About() {
                 <Briefcase className="w-12 h-12 text-white" />
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">AI Gen Helper</h2>
+            <h2 className="text-3xl font-bold text-gray-900">AI GenX</h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Your AI-powered companion for crafting compelling job application
               responses tailored specifically for startup roles and tech

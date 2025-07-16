@@ -18,7 +18,7 @@ export default function Sidebar({ currentPage, onPageChange, onSettingsOpen }) {
             </div>
             <div>
               <h1 className="font-bold text-xl text-gray-900">
-                AI Gen Helper
+                AI GenX
               </h1>
               <p className="text-xs text-gray-500">
                 Job Application Assistant
@@ -35,7 +35,7 @@ export default function Sidebar({ currentPage, onPageChange, onSettingsOpen }) {
               <button
                 key={item.id}
                 onClick={() => onPageChange(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 cursor-pointer px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                   currentPage === item.id
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -52,7 +52,7 @@ export default function Sidebar({ currentPage, onPageChange, onSettingsOpen }) {
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={onSettingsOpen}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
+            className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer rounded-xl font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
           >
             <Settings className="w-5 h-5" />
             Settings

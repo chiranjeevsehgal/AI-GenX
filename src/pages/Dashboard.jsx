@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Copy,
   Send,
@@ -6,19 +6,82 @@ import {
   CheckCircle,
   Briefcase,
   MessageSquare,
-} from 'lucide-react';
-import { QUESTION_OPTIONS, SYSTEM_PROMPT } from '../utils/constants';
+} from "lucide-react";
+import { QUESTION_OPTIONS, SYSTEM_PROMPT } from "../utils/constants";
+import { indexedDBHelper } from "../utils/indexedDBHelper";
 
 export default function Dashboard({ settings }) {
   const [formData, setFormData] = useState({
-    jobDescription: '',
-    questionType: '',
-    customQuestion: '',
+    jobDescription: "",
+    questionType: "",
+    customQuestion: "",
   });
-  const [response, setResponse] = useState('');
+  const [tempSettings, setTempSettings] = useState(settings);
+  const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
+  const [resumeData, setResumeData] = useState({
+    text: "",
+    fileName: "",
+    hasFile: false,
+    isLoading: false,
+  });
+
+  useEffect(() => {
+    setTempSettings(settings);
+  }, [settings]);
+
+  useEffect(() => {
+    const loadResumeData = async () => {
+      setResumeData((prev) => ({ ...prev, isLoading: true }));
+
+      try {
+        // Load resume summary from IndexedDB
+        const resumeText = await indexedDBHelper.getResumeText();
+
+        // Load resume file metadata from IndexedDB
+        const resumeFile = await indexedDBHelper.getFile();
+
+        setResumeData({
+          text: resumeText || "",
+          fileName: resumeFile?.name || "",
+          hasFile: !!resumeFile,
+          isLoading: false,
+        });
+      } catch (error) {
+        console.error("Error loading resume data:", error);
+        setResumeData((prev) => ({ ...prev, isLoading: false }));
+      }
+    };
+
+    loadResumeData();
+  }, []);
+
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // Remove data URL prefix (data:application/pdf;base64,)
+        const base64 = reader.result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const getResumeData = async () => {
+    const resumeFile = await indexedDBHelper.getFile();
+
+    return {
+      hasFile: !!resumeFile,
+      fileData: resumeFile?.data || null,
+      fileName: resumeFile?.name || "",
+      fileType: resumeFile?.type || "",
+      textContent: resumeData.text || "",
+    };
+  };
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -26,10 +89,10 @@ export default function Dashboard({ settings }) {
       [field]: value,
     }));
 
-    if (field === 'questionType' && value !== 'custom') {
+    if (field === "questionType" && value !== "custom") {
       setFormData((prev) => ({
         ...prev,
-        customQuestion: '',
+        customQuestion: "",
       }));
     }
   };
@@ -38,40 +101,50 @@ export default function Dashboard({ settings }) {
     const selected = QUESTION_OPTIONS.find(
       (opt) => opt.value === formData.questionType
     );
-    if (formData.questionType === 'custom') {
+    if (formData.questionType === "custom") {
       return formData.customQuestion;
     }
-    return selected ? selected.label : '';
+    return selected ? selected.label : "";
   };
 
   const generateResponse = async () => {
     if (!formData.jobDescription.trim() || !formData.questionType) {
-      setError('Please fill in all required fields');
+      setError("Please fill in all required fields");
       return;
     }
 
-    if (formData.questionType === 'custom' && !formData.customQuestion.trim()) {
-      setError('Please enter your custom question');
+    if (formData.questionType === "custom" && !formData.customQuestion.trim()) {
+      setError("Please enter your custom question");
       return;
     }
 
     if (!settings.apiKey.trim()) {
-      setError('Please configure your API key in settings');
+      setError("Please configure your API key in settings");
       return;
     }
 
-    if (!settings.resumeText.trim()) {
-      setError('Please add your resume text in settings');
+    // Get resume data from IndexedDB
+    const resumeData = await getResumeData();
+
+    if (!resumeData.hasFile && !settings.resumeText.trim()) {
+      setError(
+        "Please add your resume summary or upload a resume file in settings"
+      );
       return;
     }
 
     setLoading(true);
-    setError('');
-    setResponse('');
+    setError("");
+    setResponse("");
 
     try {
       const questionText = getQuestionText();
-      const prompt = `${SYSTEM_PROMPT}
+
+      // Prepare the request parts
+      const parts = [];
+
+      // Add text prompt
+      const textPrompt = `${SYSTEM_PROMPT}
 
 Job Description:
 ${formData.jobDescription}
@@ -79,41 +152,71 @@ ${formData.jobDescription}
 Question to Answer:
 ${questionText}
 
-Resume/Background (use relevant details from this):
-${settings.resumeText}
+${
+  resumeData.textContent
+    ? `Resume Summary:\n${resumeData.textContent}\n\n`
+    : ""
+}Please provide a tailored response to the question based on the job description and ${
+        resumeData.hasFile ? "the resume file" : "resume information"
+      } provided.`;
 
-Please provide a tailored response to the question based on the job description and background provided.`;
+      parts.push({
+        text: textPrompt,
+      });
+
+      // Add file if available
+      if (resumeData.hasFile && resumeData.fileData) {
+        try {
+          const base64Data = await fileToBase64(resumeData.fileData);
+
+          // Get MIME type for the file
+          const mimeType = resumeData.fileType || "application/octet-stream";
+
+          parts.push({
+            inline_data: {
+              mime_type: mimeType,
+              data: base64Data,
+            },
+          });
+        } catch (fileError) {
+          console.error("Error processing file:", fileError);
+          setError("Failed to process resume file. Please try again.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      const requestBody = {
+        contents: [
+          {
+            parts: parts,
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        },
+      };
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1/models/${settings.model}:generateContent?key=${settings.apiKey}`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: prompt,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 1024,
-            },
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
         throw new Error(
-          `API request failed: ${response.status} ${response.statusText}`
+          `API request failed: ${response.status} ${response.statusText}${
+            errorData ? ` - ${errorData.error?.message || "Unknown error"}` : ""
+          }`
         );
       }
 
@@ -123,11 +226,12 @@ Please provide a tailored response to the question based on the job description 
         const generatedText = data.candidates[0].content.parts[0].text;
         setResponse(generatedText);
       } else {
-        throw new Error('Invalid response format from Gemini API');
+        throw new Error("Invalid response format from Gemini API");
       }
     } catch (err) {
-      setError(`Failed to generate response: ${err.message}`);
-      console.error('API Error:', err);
+      // setError(`Failed to generate response: ${err.message}`);
+      setError(`Failed to generate response.`);
+      console.error("API Error:", err);
     } finally {
       setLoading(false);
     }
@@ -139,7 +243,7 @@ Please provide a tailored response to the question based on the job description 
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
-      console.error('Failed to copy text:', err);
+      console.error("Failed to copy text:", err);
     }
   };
 
@@ -151,7 +255,7 @@ Please provide a tailored response to the question based on the job description 
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
               <Briefcase className="w-4 h-4 text-blue-600" />
-              Job Description *
+              Job Description <span className="text-red-600">*</span>
             </label>
             <div className="relative">
               <textarea
@@ -159,7 +263,7 @@ Please provide a tailored response to the question based on the job description 
                 placeholder="Paste the complete job description here..."
                 value={formData.jobDescription}
                 onChange={(e) =>
-                  handleInputChange('jobDescription', e.target.value)
+                  handleInputChange("jobDescription", e.target.value)
                 }
               />
               <div className="absolute bottom-3 right-3 text-xs text-gray-400">
@@ -172,13 +276,13 @@ Please provide a tailored response to the question based on the job description 
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
               <MessageSquare className="w-4 h-4 text-blue-600" />
-              Question Type *
+              Question Type <span className="text-red-600">*</span>
             </label>
             <select
               className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 text-gray-800 appearance-none cursor-pointer"
               value={formData.questionType}
               onChange={(e) =>
-                handleInputChange('questionType', e.target.value)
+                handleInputChange("questionType", e.target.value)
               }
             >
               <option value="" className="text-gray-500">
@@ -197,7 +301,7 @@ Please provide a tailored response to the question based on the job description 
           </div>
 
           {/* Custom Question Input */}
-          {formData.questionType === 'custom' && (
+          {formData.questionType === "custom" && (
             <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
               <label className="block text-sm font-semibold text-gray-800">
                 Custom Question *
@@ -208,7 +312,7 @@ Please provide a tailored response to the question based on the job description 
                 placeholder="Enter your specific question here..."
                 value={formData.customQuestion}
                 onChange={(e) =>
-                  handleInputChange('customQuestion', e.target.value)
+                  handleInputChange("customQuestion", e.target.value)
                 }
               />
             </div>
@@ -251,7 +355,7 @@ Please provide a tailored response to the question based on the job description 
                 </h3>
                 <button
                   onClick={copyToClipboard}
-                  className="bg-gray-700 text-white px-4 py-2.5 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 w-full sm:w-auto"
+                  className="bg-gray-700 text-white cursor-pointer px-4 py-2.5 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 w-full sm:w-auto"
                 >
                   {copySuccess ? (
                     <>

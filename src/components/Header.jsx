@@ -1,12 +1,13 @@
 import React from 'react';
 
 export default function Header({ currentPage, settings }) {
+  
   const getPageDescription = () => {
     switch (currentPage) {
       case 'dashboard':
         return 'Generate personalized job application responses';
       case 'about':
-        return 'Learn more about AI Gen Helper';
+        return 'Learn more about AI GenX';
       default:
         return '';
     }
