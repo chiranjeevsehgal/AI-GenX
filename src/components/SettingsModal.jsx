@@ -1,0 +1,364 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Settings,
+  X,
+  Save,
+  Key,
+  Cpu,
+  Briefcase,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Upload,
+  FileText,
+  Trash2,
+} from 'lucide-react';
+import { GEMINI_MODELS } from '../utils/constants';
+
+export default function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
+  const [tempSettings, setTempSettings] = useState(settings);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showApiHelp, setShowApiHelp] = useState(false);
+  const [showModelHelp, setShowModelHelp] = useState(false);
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeText, setResumeText] = useState('');
+  const [uploadError, setUploadError] = useState('');
+
+  // Update tempSettings when settings prop changes
+  useEffect(() => {
+    setTempSettings(settings);
+    setResumeText(settings.resumeText || '');
+  }, [settings]);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('ai-gen-helper-settings');
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        setTempSettings(parsed);
+        setResumeText(parsed.resumeText || '');
+      } catch (error) {
+        console.error('Error loading settings from localStorage:', error);
+      }
+    }
+  }, []);
+
+  const handleSave = () => {
+    const settingsToSave = {
+      ...tempSettings,
+      resumeText: resumeText
+    };
+    
+    // Save to localStorage
+    localStorage.setItem('ai-gen-helper-settings', JSON.stringify(settingsToSave));
+    
+    // Call parent callback
+    onSaveSettings(settingsToSave);
+    
+    setSaveSuccess(true);
+    setTimeout(() => {
+      setSaveSuccess(false);
+      onClose();
+    }, 1000);
+  };
+
+  const handleInputChange = (field, value) => {
+    setTempSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploadError('');
+    setResumeFile(file);
+
+    // Check file type
+    const allowedTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Please upload a PDF, Word document, or text file');
+      return;
+    }
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File size must be less than 5MB');
+      return;
+    }
+
+    // For text files, read content directly
+    if (file.type === 'text/plain') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setResumeText(e.target.result);
+      };
+      reader.readAsText(file);
+    } else {
+      // For PDF/Word files, you'd need additional libraries to extract text
+      // For now, just show the filename
+      setResumeText(`Resume file uploaded: ${file.name}\n\nNote: For best results, please copy and paste your resume text directly into the text area below.`);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setResumeFile(null);
+    setResumeText('');
+    setUploadError('');
+    // Reset file input
+    const fileInput = document.getElementById('resume-upload');
+    if (fileInput) fileInput.value = '';
+  };
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-full max-h-screen sm:max-h-[95vh] overflow-hidden flex flex-col">
+        {/* Header - Fixed */}
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-lg">
+              <Settings className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800">Settings</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            aria-label="Close settings"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="space-y-6 sm:space-y-8">
+            {/* API Key Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <Key className="w-4 h-4 text-blue-600" />
+                  API Configuration
+                </div>
+                <button
+                  onClick={() => setShowApiHelp(!showApiHelp)}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  {showApiHelp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {showApiHelp ? 'Hide' : 'Show'} Help
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  Gemini API Key <span className='text-red-600'>*</span>
+                </label>
+                <input
+                  type="password"
+                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 text-gray-800 placeholder-gray-500 text-sm sm:text-base"
+                  placeholder="Enter your Gemini API key..."
+                  value={tempSettings.apiKey || ''}
+                  onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                />
+                
+                {showApiHelp && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 animate-in slide-in-from-top-2 duration-200">
+                    <p className="text-xs sm:text-sm text-blue-700">
+                      <strong>How to get your API key:</strong>
+                    </p>
+                    <ol className="text-xs sm:text-sm text-blue-600 mt-1 ml-4 list-decimal space-y-1">
+                      <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Google AI Studio</a></li>
+                      <li>Sign in with your Google account</li>
+                      <li>Click "Create API key"</li>
+                      <li>Copy and paste the key here</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Model Selection */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <Cpu className="w-4 h-4 text-blue-600" />
+                  Model Selection
+                </div>
+                <button
+                  onClick={() => setShowModelHelp(!showModelHelp)}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  {showModelHelp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {showModelHelp ? 'Hide' : 'Show'} Help
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  Gemini Model  <span className='text-red-600'>*</span>
+                </label>
+                <select
+                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 text-gray-800 appearance-none cursor-pointer text-sm sm:text-base"
+                  value={tempSettings.model || 'gemini-1.5-flash'}
+                  onChange={(e) => handleInputChange('model', e.target.value)}
+                >
+                  {GEMINI_MODELS.map((model) => (
+                    <option
+                      key={model.value}
+                      value={model.value}
+                      className="text-gray-800"
+                    >
+                      {model.label}
+                    </option>
+                  ))}
+                </select>
+                
+                {showModelHelp && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 animate-in slide-in-from-top-2 duration-200">
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      <strong>Model recommendations:</strong>
+                    </p>
+                    <ul className="text-xs sm:text-sm text-gray-600 mt-1 space-y-1">
+                      <li>• <strong>Flash:</strong> Fastest, good for most use cases</li>
+                      <li>• <strong>Pro:</strong> Better quality, slightly slower</li>
+                      <li>• <strong>1.0 Pro:</strong> Legacy model, reliable</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Resume Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Briefcase className="w-4 h-4 text-blue-600" />
+                Resume/Background  <span className='text-red-600'>*</span>
+              </div>
+
+              <div className="space-y-4">
+                {/* File Upload */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Upload Resume File
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 cursor-pointer">
+                      <input
+                        id="resume-upload"
+                        type="file"
+                        accept=".txt,.pdf,.doc,.docx"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      <div className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 transition-colors bg-gray-50/50">
+                        <Upload className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">
+                          {resumeFile ? resumeFile.name : 'Choose file or drag and drop'}
+                        </span>
+                      </div>
+                    </label>
+                    {resumeFile && (
+                      <button
+                        onClick={handleRemoveFile}
+                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Remove file"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {uploadError && (
+                    <p className="text-red-600 text-xs">{uploadError}</p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Supported formats: PDF, Word (.doc, .docx), Text (.txt) - Max 5MB
+                  </p>
+                </div>
+
+                {/* Text Area */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Resume Text
+                  </label>
+                  <textarea
+                    className="w-full h-32 sm:h-40 p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 resize-none bg-gray-50/50 text-gray-800 placeholder-gray-500 text-sm"
+                    placeholder="Paste your resume content here or upload a file above..."
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                  />
+                  <div className="flex items-start justify-between text-xs text-gray-500">
+                    <p>This will be used to personalize your responses</p>
+                    <span className="ml-2 flex-shrink-0">
+                      {resumeText.length} characters
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Success Message */}
+            {saveSuccess && (
+              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3 animate-in slide-in-from-top-2 duration-200">
+                <p className="text-green-700 text-sm font-medium flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Settings saved successfully!
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer - Fixed */}
+        <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200 text-sm sm:text-base"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!tempSettings.apiKey?.trim()}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all duration-200 text-sm sm:text-base"
+            >
+              <Save className="w-4 h-4" />
+              Save Settings
+            </button>
+          </div>
+          
+          {/* Mobile-specific help text */}
+          <div className="mt-3 sm:hidden">
+            <p className="text-xs text-gray-500 text-center">
+              Tip: Rotate your device to landscape for a better experience
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
