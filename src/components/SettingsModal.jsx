@@ -276,18 +276,20 @@ export default function SettingsModal({
                       <li>
                         Visit{" "}
                         <span className="font-bold">
-                        <a
-                          href="https://aistudio.google.com/app/apikey"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline hover:text-blue-800"
-                        >
-                          Google AI Studio
-                        </a>
+                          <a
+                            href="https://aistudio.google.com/app/apikey"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline hover:text-blue-800"
+                          >
+                            Google AI Studio
+                          </a>
                         </span>
                       </li>
                       <li>Sign in with your Google account</li>
-                      <li>Click <span className="font-bold">Get API key</span></li>
+                      <li>
+                        Click <span className="font-bold">Get API key</span>
+                      </li>
                       <li>Copy and paste the key here</li>
                     </ol>
                   </div>
@@ -456,7 +458,6 @@ export default function SettingsModal({
             </button>
             <button
               onClick={handleSave}
-              disabled={!tempSettings.apiKey?.trim()}
               className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex cursor-pointer items-center justify-center gap-2 transition-all duration-200 text-sm sm:text-base"
             >
               <Save className="w-4 h-4" />
