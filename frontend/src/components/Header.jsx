@@ -72,7 +72,7 @@ export default function Header({ currentPage, settings }) {
               <div className="flex items-center gap-3">
                 <div className="text-left">
                   <p className="text-sm text-gray-500 flex items-center gap-1">
-                    <apiStatus.icon className="w-3 h-3" />
+                    <apiStatus.icon className="w-3 h-3 text-blue-400" />
                     API Status
                   </p>
                   <div className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export default function Header({ currentPage, settings }) {
               <div className="flex items-center gap-4 mx-4 mr-14">
                 <div className="text-right">
                   <p className="text-sm text-gray-500 flex items-center gap-1">
-                    <apiStatus.icon className="w-3 h-3" />
+                    <apiStatus.icon className="w-3 h-3 text-blue-400" />
                     API Status
                   </p>
                   <div className="flex items-center gap-2">

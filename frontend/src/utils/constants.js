@@ -48,17 +48,6 @@ export const GEMINI_MODELS = [
     { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash-Lite' }
 ];
 
-export const NAVIGATION_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'Home' },
-  { id: 'about', label: 'About', icon: 'Info' }
-];
-
-export const TECH_STACK = [
-  'React',
-  'Tailwind CSS', 
-  'Google Gemini AI',
-];
-
 export const DEFAULT_SETTINGS = {
   apiKey: '',
   model: 'gemini-2.0-flash',
