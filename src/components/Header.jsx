@@ -4,10 +4,13 @@ import {
   SignedOut,
   SignInButton,
   UserButton,
+  useAuth,
 } from "@clerk/clerk-react";
-import { User, LogIn, Shield, Zap } from "lucide-react";
+import { User, LogIn, Shield, Zap, Key, CheckCircle } from "lucide-react";
 
 export default function Header({ currentPage, settings }) {
+  const { isSignedIn } = useAuth();
+
   const getPageDescription = () => {
     switch (currentPage) {
       case "dashboard":
@@ -18,6 +21,38 @@ export default function Header({ currentPage, settings }) {
         return "";
     }
   };
+
+  // Determine API status based on authentication and settings
+  const getApiStatus = () => {
+    if (isSignedIn && !settings.useCustomApiKey) {
+      // User is signed in and using provided API key
+      
+      return {
+        status: "provided",
+        label: "API Provided",
+        color: "bg-green-500",
+        icon: Shield
+      };
+    } else if (settings.apiKey?.trim()) {
+      // User has configured their own API key
+      return {
+        status: "configured",
+        label: "API Configured", 
+        color: "bg-blue-500",
+        icon: Key
+      };
+    } else {
+      // No API key configured
+      return {
+        status: "missing",
+        label: "Setup Required",
+        color: "bg-red-500",
+        icon: Shield
+      };
+    }
+  };
+
+  const apiStatus = getApiStatus();
 
   return (
     <div className="mb-8">
@@ -38,17 +73,17 @@ export default function Header({ currentPage, settings }) {
             <div className="flex items-center gap-4 mx-4 mr-14">
               <div className="text-right">
                 <p className="text-sm text-gray-500 flex items-center gap-1">
-                  <Shield className="w-3 h-3" />
+                  <apiStatus.icon className="w-3 h-3" />
                   API Status
                 </p>
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      settings.apiKey ? "bg-green-500" : "bg-red-500"
-                    } animate-pulse`}
+                    className={`w-2 h-2 rounded-full ${apiStatus.color} ${
+                      apiStatus.status === "missing" ? "animate-pulse" : ""
+                    }`}
                   ></div>
                   <span className="text-sm font-medium text-gray-700">
-                    {settings.apiKey ? "Connected" : "Not Configured"}
+                    {apiStatus.label}
                   </span>
                 </div>
               </div>

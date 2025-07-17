@@ -12,7 +12,14 @@ import {
   Upload,
   FileText,
   Trash2,
+  Shield,
+  User,
+  Zap,
+  Info,
+  Lock,
+  Unlock,
 } from "lucide-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { GEMINI_MODELS } from "../utils/constants";
 import { indexedDBHelper } from "../utils/indexedDBHelper";
 
@@ -22,6 +29,9 @@ export default function SettingsModal({
   settings,
   onSaveSettings,
 }) {
+  const { isSignedIn, userId } = useAuth();
+  const { user } = useUser();
+
   const [tempSettings, setTempSettings] = useState(settings);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showApiHelp, setShowApiHelp] = useState(false);
@@ -29,35 +39,39 @@ export default function SettingsModal({
   const [resumeFile, setResumeFile] = useState(null);
   const [resumeText, setResumeText] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [useCustomApiKey, setUseCustomApiKey] = useState(false);
 
   // Update tempSettings when settings prop changes
   useEffect(() => {
     setTempSettings(settings);
     setResumeText(settings.resumeText || "");
+    setUseCustomApiKey(settings.useCustomApiKey || false);
   }, [settings]);
 
-  // Load settings from localStorage on mount
+  // Load settings from localStorage on mount (user-specific if logged in)
   useEffect(() => {
-    const savedSettings = localStorage.getItem("ai-genx-settings");
+    const settingsKey = "ai-genx-settings";
+    const savedSettings = localStorage.getItem(settingsKey);
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings);
         setTempSettings(parsed);
         setResumeText(parsed.resumeText || "");
+        setUseCustomApiKey(parsed.useCustomApiKey || false);
       } catch (error) {
         console.error("Error loading settings from localStorage:", error);
       }
     }
-  }, []);
+  }, [isSignedIn, userId]);
 
   // Load resume from indexeddb on mount
   useEffect(() => {
     const loadResumeFromIndexedDB = async () => {
       try {
-        // Load resume file from IndexedDB
-        const savedFileData = await indexedDBHelper.getFile();
+        // Load resume file from IndexedDB (user-specific if logged in)
+        const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+        const savedFileData = await indexedDBHelper.getFile(fileId);
         if (savedFileData) {
-          // Create a mock file object with the saved metadata
           const mockFile = {
             name: savedFileData.name,
             type: savedFileData.type,
@@ -73,24 +87,27 @@ export default function SettingsModal({
       }
     };
 
-    // Only load if modal is open
     if (isOpen) {
       loadResumeFromIndexedDB();
     }
-  }, [isOpen]);
+  }, [isOpen, isSignedIn, userId]);
 
   const handleSave = async () => {
     try {
       const settingsToSave = {
         ...tempSettings,
         resumeText: resumeText,
+        useCustomApiKey: useCustomApiKey,
       };
 
-      // Save to localStorage
-      localStorage.setItem("ai-genx-settings", JSON.stringify(settingsToSave));
+      // Save to localStorage (user-specific if logged in)
+      const settingsKey = "ai-genx-settings";
+      localStorage.setItem(settingsKey, JSON.stringify(settingsToSave));
 
       if (resumeFile) {
-        await indexedDBHelper.saveFile(resumeFile.data);
+        // Save file user-specifically if logged in
+        const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+        await indexedDBHelper.saveFile(resumeFile.data, fileId);
       }
 
       // Call parent callback
@@ -139,7 +156,6 @@ export default function SettingsModal({
         return;
       }
 
-      // Set the file object
       const fileWithData = {
         name: file.name,
         type: file.type,
@@ -157,8 +173,6 @@ export default function SettingsModal({
         };
         reader.readAsText(file);
       }
-      // For other file types, you might want to add processing logic here
-      // For now, we'll just store the file and let the user add text manually
     } catch (error) {
       console.error("Error processing file:", error);
       setUploadError("Failed to process file. Please try again.");
@@ -167,8 +181,9 @@ export default function SettingsModal({
 
   const handleRemoveFile = async () => {
     try {
-      // Remove from IndexedDB
-      await indexedDBHelper.deleteFile();
+      // Remove from IndexedDB (user-specific if logged in)
+      const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+      await indexedDBHelper.deleteFile(fileId);
 
       // Clear local state
       setResumeFile(null);
@@ -183,7 +198,6 @@ export default function SettingsModal({
 
       // Still clear local state even if IndexedDB deletion fails
       setResumeFile(null);
-      // Reset file input
       const fileInput = document.getElementById("resume-upload");
       if (fileInput) fileInput.value = "";
     }
@@ -219,9 +233,17 @@ export default function SettingsModal({
             <div className="p-2 bg-blue-600 rounded-lg">
               <Settings className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800">
-              Settings
-            </h2>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800">
+                Settings
+              </h2>
+              {isSignedIn && (
+                <p className="text-sm text-gray-600 flex items-center gap-1">
+                  <User className="w-3 h-3" />
+                  {user?.firstName || user?.emailAddresses[0]?.emailAddress}
+                </p>
+              )}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -255,43 +277,156 @@ export default function SettingsModal({
                 </button>
               </div>
 
+              {/* API Key Status Card */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      {isSignedIn ? (
+                        <Shield className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Key className="w-4 h-4 text-blue-600" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-800">
+                        {isSignedIn ? "Ready to Go!" : "API Key Required"}
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        {isSignedIn
+                          ? "API key provided - no setup needed!"
+                          : "Enter your Gemini API key to get started"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        isSignedIn ? "bg-green-500" : "bg-yellow-500"
+                      }`}
+                    ></div>
+                    <span className="text-xs font-medium text-gray-700">
+                      {isSignedIn ? "Ready" : "Setup Required"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* API Key Input */}
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  Gemini API Key <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="password"
-                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 text-gray-800 placeholder-gray-500 text-sm sm:text-base"
-                  placeholder="Enter your Gemini API key..."
-                  value={tempSettings.apiKey || ""}
-                  onChange={(e) => handleInputChange("apiKey", e.target.value)}
-                />
+                {isSignedIn && (
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">
+                        Using Provided API Key
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setUseCustomApiKey(!useCustomApiKey)}
+                      className="flex items-center cursor-pointer gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      {useCustomApiKey ? (
+                        <>
+                          <Lock className="w-3 h-3" />
+                          Use Provided Key
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="w-3 h-3" />
+                          Use My Own Key
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {(!isSignedIn || useCustomApiKey) && (
+                  <>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Gemini API Key <span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 text-gray-800 placeholder-gray-500 text-sm sm:text-base"
+                      placeholder="Enter your Gemini API key..."
+                      value={tempSettings.apiKey || ""}
+                      onChange={(e) =>
+                        handleInputChange("apiKey", e.target.value)
+                      }
+                    />
+                  </>
+                )}
+
+                {isSignedIn && !useCustomApiKey && (
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <input
+                      type="password"
+                      className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-500 text-sm"
+                      placeholder="••••••••••••••••••••••••••••••••••••••••"
+                      disabled
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      API key is provided for convenience
+                    </p>
+                  </div>
+                )}
 
                 {showApiHelp && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 animate-in slide-in-from-top-2 duration-200">
-                    <p className="text-xs sm:text-sm text-blue-700">
-                      <strong>How to get your API key:</strong>
-                    </p>
-                    <ol className="text-xs sm:text-sm text-blue-600 mt-1 ml-4 list-decimal space-y-1">
-                      <li>
-                        Visit{" "}
-                        <span className="font-bold">
-                          <a
-                            href="https://aistudio.google.com/app/apikey"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline hover:text-blue-800"
-                          >
-                            Google AI Studio
-                          </a>
-                        </span>
-                      </li>
-                      <li>Sign in with your Google account</li>
-                      <li>
-                        Click <span className="font-bold">Get API key</span>
-                      </li>
-                      <li>Copy and paste the key here</li>
-                    </ol>
+                    {isSignedIn ? (
+                      <div>
+                        <p className="text-xs sm:text-sm text-blue-700">
+                          <strong>Signed-in Benefits:</strong>
+                        </p>
+                        <ul className="text-xs sm:text-sm text-blue-600 mt-1 ml-4 list-disc space-y-1">
+                          <li>No API key setup required</li>
+                          <li>Instant access to all features</li>
+                          <li>Settings saved locally in your browser</li>
+                          <li>Easy access across sessions</li>
+                        </ul>
+                        <div className="mt-2 pt-2 border-t border-blue-200">
+                          <p className="text-xs sm:text-sm text-blue-700">
+                            <strong>Want to use your own API key?</strong>
+                          </p>
+                          <p className="text-xs sm:text-sm text-blue-600">
+                            Click "Use My Own Key" above to enter your personal
+                            Gemini API key.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs sm:text-sm text-blue-700">
+                          <strong>How to get your API key:</strong>
+                        </p>
+                        <ol className="text-xs sm:text-sm text-blue-600 mt-1 ml-4 list-decimal space-y-1">
+                          <li>
+                            Visit{" "}
+                            <a
+                              href="https://aistudio.google.com/app/apikey"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline hover:text-blue-800 font-semibold"
+                            >
+                              Google AI Studio
+                            </a>
+                          </li>
+                          <li>Sign in with your Google account</li>
+                          <li>
+                            Click <strong>Get API key</strong>
+                          </li>
+                          <li>Copy and paste the key here</li>
+                        </ol>
+                        <div className="mt-2 pt-2 border-t border-blue-200">
+                          <p className="text-xs sm:text-sm text-blue-700 flex items-center gap-1">
+                            <Info className="w-3 h-3" />
+                            <strong>Pro tip:</strong> Sign in to skip the API
+                            key setup!
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -413,7 +548,7 @@ export default function SettingsModal({
                     Max 5MB
                   </p>
                 </div>
-                <h2 className="text-center">or</h2>
+                <h2 className="text-center text-gray-400 font-medium">or</h2>
                 {/* Text Area */}
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700">
@@ -458,6 +593,9 @@ export default function SettingsModal({
             </button>
             <button
               onClick={handleSave}
+              disabled={
+                !isSignedIn && !useCustomApiKey && !tempSettings.apiKey?.trim()
+              }
               className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex cursor-pointer items-center justify-center gap-2 transition-all duration-200 text-sm sm:text-base"
             >
               <Save className="w-4 h-4" />
