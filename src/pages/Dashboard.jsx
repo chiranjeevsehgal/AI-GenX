@@ -273,13 +273,13 @@ ${
           </div>
 
           {/* Question Type Selection */}
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
               <MessageSquare className="w-4 h-4 text-blue-600" />
               Question Type <span className="text-red-600">*</span>
             </label>
             <select
-              className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 text-gray-800 appearance-none cursor-pointer"
+              className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 text-gray-800 appearance-none cursor-pointer text-sm sm:text-base"
               value={formData.questionType}
               onChange={(e) =>
                 handleInputChange("questionType", e.target.value)

@@ -1,80 +1,149 @@
-import React from 'react';
+import React from "react";
 import {
   CheckCircle,
   Briefcase,
   Info,
-  Github,
-  Mail,
-  Heart,
-} from 'lucide-react';
-import { TECH_STACK } from '../utils/constants';
+  Sparkles,
+  Zap,
+  Target,
+  Brain,
+} from "lucide-react";
 
 export default function About() {
   const features = [
-    'AI-powered cover letter generation',
-    'Personalized responses to company-specific questions',
-    'Resume-based content tailoring',
-    'Startup and tech-focused optimization',
-    'Multiple Gemini AI model support',
+    {
+      text: "AI-powered cover letter generation",
+      icon: Brain,
+      color: "text-purple-600",
+      bg: "bg-purple-50",
+    },
+    {
+      text: "Personalized responses to company-specific questions",
+      icon: Target,
+      color: "text-green-600",
+      bg: "bg-green-50",
+    },
+    {
+      text: "Resume-based content tailoring",
+      icon: Sparkles,
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+    },
+    {
+      text: "Multiple Gemini AI model support",
+      icon: Zap,
+      color: "text-orange-600",
+      bg: "bg-orange-50",
+    },
   ];
 
   const steps = [
-    'Configure your API key and resume in settings',
-    'Paste the job description you\'re applying for',
-    'Select the type of response you need',
-    'Get AI-generated, personalized content',
+    {
+      text: "Configure your API key and resume in settings",
+      color: "bg-blue-500",
+      textColor: "text-blue-600",
+    },
+    {
+      text: "Paste the job description you're applying for",
+      color: "bg-green-500",
+      textColor: "text-green-600",
+    },
+    {
+      text: "Select the type of response you need",
+      color: "bg-purple-500",
+      textColor: "text-purple-600",
+    },
+    {
+      text: "Get AI-generated, personalized content",
+      color: "bg-orange-500",
+      textColor: "text-orange-600",
+    },
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-        <div className="space-y-8">
-          {/* App Info */}
-          <div className="text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
-                <Briefcase className="w-12 h-12 text-white" />
+    <div className="h-full max-h-screen overflow-hidden">
+      <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-xl border border-gray-100/50 p-4 lg:p-6 h-full backdrop-blur-sm">
+        <div className="h-full flex flex-col">
+          {/* App Info - Enhanced */}
+          <div className="text-center space-y-4 mb-7">
+            <div className="flex justify-center"></div>
+            <div className="space-y-2">
+              <div className="flex flex-row items-center gap-x-4 justify-center">
+                <div className="p-2 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                  <Briefcase className="w-7 h-7 text-white" />
+                </div>
+                <h2 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent">
+                  AI GenX
+                </h2>
               </div>
+              <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full mx-auto"></div>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">AI GenX</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-sm lg:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
               Your AI-powered companion for crafting compelling job application
               responses tailored specifically for startup roles and tech
               companies.
             </p>
           </div>
 
-          {/* Features and How It Works */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Features */}
+          {/* Main Content Grid - Enhanced */}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+            {/* Features - Enhanced */}
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
+              <h3 className="text-xl lg:text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
                 Features
               </h3>
-              <ul className="space-y-3 text-gray-600">
-                {features.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-3">
+                {features.map((feature, index) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div
+                      key={index}
+                      className="group flex items-start gap-3 p-3 rounded-xl hover:bg-white/60 transition-all duration-200 hover:shadow-md"
+                    >
+                      <div
+                        className={`p-2 ${feature.bg} rounded-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                      >
+                        <Icon className={`w-4 h-4 ${feature.color}`} />
+                      </div>
+                      <span className="text-sm lg:text-base text-gray-700 leading-relaxed font-medium">
+                        {feature.text}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* How It Works */}
+            {/* How It Works - Enhanced */}
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                <Info className="w-5 h-5 text-blue-600" />
+              <h3 className="text-xl lg:text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Info className="w-6 h-6 text-blue-600" />
+                </div>
                 How It Works
               </h3>
-              <div className="space-y-3 text-gray-600">
+              <div className="space-y-3">
                 {steps.map((step, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                      {index + 1}
+                  <div
+                    key={index}
+                    className="group flex items-start gap-4 p-3 rounded-xl hover:bg-white/60 transition-all duration-200 hover:shadow-md"
+                  >
+                    <div className="relative flex-shrink-0">
+                      <div
+                        className={`w-8 h-8 ${step.color} rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md group-hover:scale-110 transition-transform duration-200`}
+                      >
+                        {index + 1}
+                      </div>
+                      {index < steps.length - 1 && (
+                        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-gradient-to-b from-gray-300 to-transparent"></div>
+                      )}
                     </div>
-                    <span>{step}</span>
+                    <span className="text-sm lg:text-base text-gray-700 leading-relaxed font-medium pt-1">
+                      {step.text}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -82,56 +151,24 @@ export default function About() {
           </div>
 
           {/* Developer Info */}
-          <div className="border-t border-gray-200 pt-8">
-            <div className="text-center space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800">
-                About the Developer
-              </h3>
-              <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 max-w-2xl mx-auto">
-                <p className="text-gray-700 leading-relaxed mb-4">
-                  Built with{' '}
-                  <Heart className="w-4 h-4 text-red-500 inline mx-1" /> by a
-                  passionate developer who understands the challenges of job
-                  hunting in the tech industry. This tool was created to help
-                  fellow developers and tech professionals stand out in the
-                  competitive startup ecosystem.
+          <div className="border-t border-gray-200/50 pt-2">
+            <div className="text-center space-y-1">
+              <div className="inline-block px-4 py-2 rounded-full">
+                <p className="text-sm text-gray-600 font-medium">
+                  © 2025 AI GenX. Empowering professionals to land their dream jobs.
                 </p>
-                <div className="flex justify-center gap-4">
-                  <a
-                    href="https://github.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors duration-200"
-                  >
-                    <Github className="w-4 h-4" />
-                    GitHub
-                  </a>
-                  <a
-                    href="mailto:developer@example.com"
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                  >
-                    <Mail className="w-4 h-4" />
-                    Contact
-                  </a>
-                </div>
               </div>
-            </div>
-          </div>
-
-          {/* Tech Stack */}
-          <div className="border-t border-gray-200 pt-8">
-            <div className="text-center space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800">Built With</h3>
-              <div className="flex flex-wrap justify-center gap-3">
-                {TECH_STACK.map((tech) => (
-                  <span
-                    key={tech}
-                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                  >
-                    {tech}
-                  </span>
-                ))}
-              </div>
+              <p className="text-sm text-gray-500">
+                Developed by{" "}
+                <a
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors duration-200"
+                >
+                  Chiranjeev Sehgal
+                </a>
+              </p>
             </div>
           </div>
         </div>

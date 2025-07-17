@@ -12,7 +12,6 @@ export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    
     const savedSettings = localStorage.getItem("ai-genx-settings");
     if (savedSettings) {
       try {
