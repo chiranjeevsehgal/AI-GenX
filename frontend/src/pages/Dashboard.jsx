@@ -118,18 +118,13 @@ export default function Dashboard({ settings }) {
       const resumeData = await getResumeData();
       const questionText = getQuestionText();
 
-      console.log(token);
-      console.log(resumeData);
-      console.log(questionText);
-      
-
       // Build the prompt for backend
       let prompt = `Job Description:\n${formData.jobDescription}\n\nQuestion to Answer:\n${questionText}`;
-      
+
       if (resumeData.textContent) {
         prompt += `\n\nResume Summary:\n${resumeData.textContent}`;
       }
-      
+
       prompt += `\n\nPlease provide a tailored response to the question based on the job description and ${
         resumeData.hasFile ? "the resume file" : "resume information"
       } provided.`;
@@ -155,7 +150,7 @@ export default function Dashboard({ settings }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(requestBody),
       });
@@ -163,9 +158,9 @@ export default function Dashboard({ settings }) {
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(
-          `Backend API request failed: ${response.status} ${response.statusText}${
-            errorData ? ` - ${errorData.message || "Unknown error"}` : ""
-          }`
+          `Backend API request failed: ${response.status} ${
+            response.statusText
+          }${errorData ? ` - ${errorData.message || "Unknown error"}` : ""}`
         );
       }
 
@@ -201,9 +196,7 @@ Question to Answer:
 ${questionText}
 
 ${
-  resumeData.textContent
-    ? `Resume Summary:\n${resumeData.textContent}\n\n`
-    : ""
+  resumeData.textContent ? `Resume Summary:\n${resumeData.textContent}\n\n` : ""
 }Please provide a tailored response to the question based on the job description and ${
         resumeData.hasFile ? "the resume file" : "resume information"
       } provided.`;
@@ -253,7 +246,9 @@ ${
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(
-          `Direct API request failed: ${response.status} ${response.statusText}${
+          `Direct API request failed: ${response.status} ${
+            response.statusText
+          }${
             errorData ? ` - ${errorData.error?.message || "Unknown error"}` : ""
           }`
         );
@@ -286,7 +281,17 @@ ${
 
     // For non-logged-in users, check API key
     if (!isSignedIn && !settings.apiKey?.trim()) {
-      setError("Please configure your API key in settings or sign in to continue");
+      setError(
+        "Please configure your API key in settings or sign in to continue"
+      );
+      return;
+    }
+
+    // For logged-in users, but using custom API key
+    if (isSignedIn && settings.useCustomApiKey && !settings.apiKey?.trim()) {
+      setError(
+        "Please configure your custom API key in settings, or switch to the provided API key option"
+      );
       return;
     }
 
@@ -307,6 +312,9 @@ ${
     try {
       // DECISION: Use backend if logged in, otherwise use direct API
       if (isSignedIn) {
+        if (settings.useCustomApiKey && settings.apiKey?.trim()) {
+          await generateResponseViaDirect();
+        }
         await generateResponseViaBackend();
       } else {
         await generateResponseViaDirect();
@@ -333,14 +341,6 @@ ${
     <div className="space-y-6">
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
         <div className="space-y-6">
-          {/* Status Indicator */}
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <div className={`w-2 h-2 rounded-full ${isSignedIn ? 'bg-green-500' : 'bg-blue-500'}`}></div>
-            <span>
-              {isSignedIn ? 'Using backend API (no API key needed)' : 'Using direct API (API key required)'}
-            </span>
-          </div>
-
           {/* Job Description Input */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">

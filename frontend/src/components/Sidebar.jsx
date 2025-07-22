@@ -36,7 +36,7 @@ export default function Sidebar({ currentPage, onPageChange, onSettingsOpen }) {
         <div className="flex items-center justify-between p-4">
           <button
             onClick={toggleMobileMenu}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
           >
             {isMobileMenuOpen ? (
               <X className="w-6 h-6 text-gray-600" />

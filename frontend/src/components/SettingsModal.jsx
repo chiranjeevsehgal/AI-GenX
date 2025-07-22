@@ -99,15 +99,15 @@ export default function SettingsModal({
         ...tempSettings,
         resumeText: resumeText,
         useCustomApiKey: useCustomApiKey,
+        apiKey: useCustomApiKey ? tempSettings.apiKey : "",
       };
 
       // Save to localStorage (user-specific if logged in)
       const settingsKey = "ai-genx-settings";
       localStorage.setItem(settingsKey, JSON.stringify(settingsToSave));
-
+      
       if (resumeFile) {
         // Save file user-specifically if logged in
-        
         // const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
         const fileId = "current-resume";
         await indexedDBHelper.saveFile(resumeFile.data, fileId);
@@ -323,7 +323,15 @@ export default function SettingsModal({
                     <div className="flex items-center gap-2">
                       <Zap className="w-4 h-4 text-blue-600" />
                       <span className="text-sm font-medium text-blue-800">
-                        Using Provided API Key
+                        {!useCustomApiKey ? (
+                          <>
+                          Using System Provided API Key
+                        </>
+                      ) : (
+                        <>
+                          Using Custom API Key
+                        </>
+                      )}
                       </span>
                     </div>
                     <button

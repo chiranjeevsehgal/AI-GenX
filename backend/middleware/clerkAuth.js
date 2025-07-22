@@ -51,7 +51,6 @@ const auth = async (req, res, next) => {
 
     // Get user details from Clerk
     const user = await clerkClient.users.getUser(auth.userId);
-    console.log('User found:', user.emailAddresses[0]?.emailAddress);
 
     // Attach to request
     req.auth = {

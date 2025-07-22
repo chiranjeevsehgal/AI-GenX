@@ -78,11 +78,6 @@ const generateContent = async (req, res) => {
         }),
       },
     };
-    console.log(`Making Gemini API request to model: ${model}`);
-    console.log(`Job Description length: ${jobDescription.length} characters`);
-    console.log(`Resume text provided: ${resume ? "Yes" : "No"}`);
-    console.log(`Resume file provided: ${resumeFile ? "Yes" : "No"}`);
-    console.log(`Total parts in request: ${parts.length}`);
 
     // Make request to Gemini API
     const response = await axios.post(
@@ -96,8 +91,6 @@ const generateContent = async (req, res) => {
         timeout: 30000, // 30 seconds timeout
       }
     );
-
-    console.log("Gemini API response received successfully");
 
     // Extract the generated text
     const generatedText =
