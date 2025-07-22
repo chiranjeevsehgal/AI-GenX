@@ -97,15 +97,15 @@ export default function Sidebar({ currentPage, onPageChange, onSettingsOpen }) {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:relative top-0 left-0 h-screen z-40 
+        fixed lg:relative top-0 left-0 min-h-screen z-40 
         w-64 bg-white/90 backdrop-blur-sm border-r border-gray-200 shadow-lg
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0
       `}>
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col h-full min-h-screen">
           {/* Logo - Hidden on mobile */}
-          <div className="hidden lg:block p-6 border-b border-gray-200">
+          <div className="hidden lg:block p-6 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl">
                 <Briefcase className="w-6 h-6 text-white" />
@@ -122,10 +122,10 @@ export default function Sidebar({ currentPage, onPageChange, onSettingsOpen }) {
           </div>
 
           {/* Mobile spacing */}
-          <div className="lg:hidden h-20"></div>
+          <div className="lg:hidden h-20 flex-shrink-0"></div>
 
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
+          {/* Navigation - This will grow to fill space */}
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
@@ -146,7 +146,7 @@ export default function Sidebar({ currentPage, onPageChange, onSettingsOpen }) {
           </nav>
 
           {/* Settings Button */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="flex-shrink-0 p-4 border-t border-gray-200">
             <button
               onClick={handleSettingsOpen}
               className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer rounded-xl font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
