@@ -69,7 +69,8 @@ export default function SettingsModal({
     const loadResumeFromIndexedDB = async () => {
       try {
         // Load resume file from IndexedDB (user-specific if logged in)
-        const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+        // const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+        const fileId = "current-resume";
         const savedFileData = await indexedDBHelper.getFile(fileId);
         if (savedFileData) {
           const mockFile = {
@@ -106,7 +107,9 @@ export default function SettingsModal({
 
       if (resumeFile) {
         // Save file user-specifically if logged in
-        const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+        
+        // const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+        const fileId = "current-resume";
         await indexedDBHelper.saveFile(resumeFile.data, fileId);
       }
 
@@ -182,7 +185,8 @@ export default function SettingsModal({
   const handleRemoveFile = async () => {
     try {
       // Remove from IndexedDB (user-specific if logged in)
-      const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+      // const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+      const fileId = "current-resume";
       await indexedDBHelper.deleteFile(fileId);
 
       // Clear local state

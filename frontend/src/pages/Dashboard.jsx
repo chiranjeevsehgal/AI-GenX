@@ -7,10 +7,14 @@ import {
   Briefcase,
   MessageSquare,
 } from "lucide-react";
+import { useAuth } from "@clerk/clerk-react";
 import { QUESTION_OPTIONS, SYSTEM_PROMPT } from "../utils/constants";
 import { indexedDBHelper } from "../utils/indexedDBHelper";
 
+const API_BASE_URL = import.meta.env.VITE_APP_API_URL;
+
 export default function Dashboard({ settings }) {
+  const { isSignedIn, getToken } = useAuth();
   const [formData, setFormData] = useState({
     jobDescription: "",
     questionType: "",
@@ -107,38 +111,82 @@ export default function Dashboard({ settings }) {
     return selected ? selected.label : "";
   };
 
-  const generateResponse = async () => {
-    if (!formData.jobDescription.trim() || !formData.questionType) {
-      setError("Please fill in all required fields");
-      return;
+  // NEW: Backend API call for logged-in users
+  const generateResponseViaBackend = async () => {
+    try {
+      const token = await getToken();
+      const resumeData = await getResumeData();
+      const questionText = getQuestionText();
+
+      console.log(token);
+      console.log(resumeData);
+      console.log(questionText);
+      
+
+      // Build the prompt for backend
+      let prompt = `Job Description:\n${formData.jobDescription}\n\nQuestion to Answer:\n${questionText}`;
+      
+      if (resumeData.textContent) {
+        prompt += `\n\nResume Summary:\n${resumeData.textContent}`;
+      }
+      
+      prompt += `\n\nPlease provide a tailored response to the question based on the job description and ${
+        resumeData.hasFile ? "the resume file" : "resume information"
+      } provided.`;
+
+      const requestBody = {
+        model: settings.model,
+        jobDescription: formData.jobDescription,
+        resume: resumeData.textContent || undefined,
+      };
+
+      // Add file if available
+      if (resumeData.hasFile && resumeData.fileData) {
+        const base64Data = await fileToBase64(resumeData.fileData);
+        const mimeType = resumeData.fileType;
+
+        requestBody.resumeFile = {
+          mimeType: mimeType,
+          data: base64Data,
+        };
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/gemini/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          `Backend API request failed: ${response.status} ${response.statusText}${
+            errorData ? ` - ${errorData.message || "Unknown error"}` : ""
+          }`
+        );
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.generatedText) {
+        setResponse(data.generatedText);
+      } else {
+        throw new Error("Invalid response format from backend API");
+      }
+    } catch (error) {
+      console.error("Backend API Error:", error);
+      throw error; // Re-throw to be handled by main function
     }
+  };
 
-    if (formData.questionType === "custom" && !formData.customQuestion.trim()) {
-      setError("Please enter your custom question");
-      return;
-    }
-
-    if (!settings.apiKey.trim()) {
-      setError("Please configure your API key in settings");
-      return;
-    }
-
-    // Get resume data from IndexedDB
-    const resumeData = await getResumeData();
-
-    if (!resumeData.hasFile && !settings.resumeText.trim()) {
-      setError(
-        "Please add your resume summary or upload a resume file in settings"
-      );
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    setResponse("");
-
+  // EXISTING: Direct Gemini API call for non-logged-in users
+  const generateResponseViaDirect = async () => {
     try {
       const questionText = getQuestionText();
+      const resumeData = await getResumeData();
 
       // Prepare the request parts
       const parts = [];
@@ -166,24 +214,15 @@ ${
 
       // Add file if available
       if (resumeData.hasFile && resumeData.fileData) {
-        try {
-          const base64Data = await fileToBase64(resumeData.fileData);
+        const base64Data = await fileToBase64(resumeData.fileData);
+        const mimeType = resumeData.fileType || "application/octet-stream";
 
-          // Get MIME type for the file
-          const mimeType = resumeData.fileType || "application/octet-stream";
-
-          parts.push({
-            inline_data: {
-              mime_type: mimeType,
-              data: base64Data,
-            },
-          });
-        } catch (fileError) {
-          console.error("Error processing file:", fileError);
-          setError("Failed to process resume file. Please try again.");
-          setLoading(false);
-          return;
-        }
+        parts.push({
+          inline_data: {
+            mime_type: mimeType,
+            data: base64Data,
+          },
+        });
       }
 
       const requestBody = {
@@ -196,7 +235,7 @@ ${
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 8096,
         },
       };
 
@@ -214,7 +253,7 @@ ${
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(
-          `API request failed: ${response.status} ${response.statusText}${
+          `Direct API request failed: ${response.status} ${response.statusText}${
             errorData ? ` - ${errorData.error?.message || "Unknown error"}` : ""
           }`
         );
@@ -228,10 +267,53 @@ ${
       } else {
         throw new Error("Invalid response format from Gemini API");
       }
+    } catch (error) {
+      console.error("Direct API Error:", error);
+      throw error; // Re-throw to be handled by main function
+    }
+  };
+
+  const generateResponse = async () => {
+    if (!formData.jobDescription.trim() || !formData.questionType) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    if (formData.questionType === "custom" && !formData.customQuestion.trim()) {
+      setError("Please enter your custom question");
+      return;
+    }
+
+    // For non-logged-in users, check API key
+    if (!isSignedIn && !settings.apiKey?.trim()) {
+      setError("Please configure your API key in settings or sign in to continue");
+      return;
+    }
+
+    // Get resume data from IndexedDB
+    const resumeData = await getResumeData();
+
+    if (!resumeData.hasFile && !settings.resumeText?.trim()) {
+      setError(
+        "Please add your resume summary or upload a resume file in settings"
+      );
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setResponse("");
+
+    try {
+      // DECISION: Use backend if logged in, otherwise use direct API
+      if (isSignedIn) {
+        await generateResponseViaBackend();
+      } else {
+        await generateResponseViaDirect();
+      }
     } catch (err) {
-      // setError(`Failed to generate response: ${err.message}`);
       setError(`Failed to generate response.`);
-      console.error("API Error:", err);
+      console.error("Generation Error:", err);
     } finally {
       setLoading(false);
     }
@@ -251,6 +333,14 @@ ${
     <div className="space-y-6">
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
         <div className="space-y-6">
+          {/* Status Indicator */}
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className={`w-2 h-2 rounded-full ${isSignedIn ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+            <span>
+              {isSignedIn ? 'Using backend API (no API key needed)' : 'Using direct API (API key required)'}
+            </span>
+          </div>
+
           {/* Job Description Input */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
