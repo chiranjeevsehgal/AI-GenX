@@ -18,6 +18,7 @@ import {
   Info,
   Lock,
   Unlock,
+  Loader2,
 } from "lucide-react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { GEMINI_MODELS } from "../utils/constants";
@@ -40,12 +41,14 @@ export default function SettingsModal({
   const [resumeText, setResumeText] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [useCustomApiKey, setUseCustomApiKey] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState("");
 
   // Update tempSettings when settings prop changes
   useEffect(() => {
     setTempSettings(settings);
     setResumeText(settings.resumeText || "");
-    setUseCustomApiKey(settings.useCustomApiKey || false);
+    setUseCustomApiKey(settings.useCustomApiKey || true);
   }, [settings]);
 
   // Load settings from localStorage on mount (user-specific if logged in)
@@ -68,8 +71,6 @@ export default function SettingsModal({
   useEffect(() => {
     const loadResumeFromIndexedDB = async () => {
       try {
-        // Load resume file from IndexedDB (user-specific if logged in)
-        // const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
         const fileId = "current-resume";
         const savedFileData = await indexedDBHelper.getFile(fileId);
         if (savedFileData) {
@@ -94,36 +95,50 @@ export default function SettingsModal({
   }, [isOpen, isSignedIn, userId]);
 
   const handleSave = async () => {
+    setIsLoading(true);
+    setLoadingStep("Validating settings...");
+    
     try {
+      setLoadingStep("Saving configuration...");
+      
       const settingsToSave = {
         ...tempSettings,
         resumeText: resumeText,
         useCustomApiKey: useCustomApiKey,
         apiKey: useCustomApiKey ? tempSettings.apiKey : "",
       };
-
+      
       // Save to localStorage (user-specific if logged in)
       const settingsKey = "ai-genx-settings";
       localStorage.setItem(settingsKey, JSON.stringify(settingsToSave));
       
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
       if (resumeFile) {
-        // Save file user-specifically if logged in
-        // const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
+        setLoadingStep("Saving resume file...");
         const fileId = "current-resume";
         await indexedDBHelper.saveFile(resumeFile.data, fileId);
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
+
+      setLoadingStep("Finalizing...");
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // Call parent callback
       onSaveSettings(settingsToSave);
 
+      setIsLoading(false);
       setSaveSuccess(true);
+      
       setTimeout(() => {
         setSaveSuccess(false);
         onClose();
-      }, 1000);
+      }, 1500);
     } catch (error) {
       console.error("Error saving settings:", error);
+      setIsLoading(false);
       setUploadError("Failed to save settings. Please try again.");
+      setLoadingStep("");
     }
   };
 
@@ -184,8 +199,6 @@ export default function SettingsModal({
 
   const handleRemoveFile = async () => {
     try {
-      // Remove from IndexedDB (user-specific if logged in)
-      // const fileId = isSignedIn ? `resume-${userId}` : "current-resume";
       const fileId = "current-resume";
       await indexedDBHelper.deleteFile(fileId);
 
@@ -210,7 +223,7 @@ export default function SettingsModal({
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !isLoading) {
         onClose();
       }
     };
@@ -224,7 +237,18 @@ export default function SettingsModal({
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isLoading]);
+
+  // Check if form is valid
+  const isFormValid = () => {
+    if (!isSignedIn && !useCustomApiKey && !tempSettings.apiKey?.trim()) {
+      return false;
+    }
+    if (!resumeText.trim() && !resumeFile) {
+      return false;
+    }
+    return true;
+  };
 
   if (!isOpen) return null;
 
@@ -251,7 +275,8 @@ export default function SettingsModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 cursor-pointer rounded-lg transition-colors duration-200"
+            disabled={isLoading}
+            className="p-2 hover:bg-gray-100 cursor-pointer rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Close settings"
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -584,42 +609,94 @@ export default function SettingsModal({
 
             {/* Save Success Message */}
             {saveSuccess && (
-              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3 animate-in slide-in-from-top-2 duration-200">
-                <p className="text-green-700 text-sm font-medium flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  Settings saved successfully!
-                </p>
+              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 animate-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-center gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                  <div className="text-center">
+                    <p className="text-green-700 text-lg font-semibold">
+                      Settings Saved Successfully!
+                    </p>
+                    <p className="text-green-600 text-sm">
+                      Your configuration has been updated and is ready to use.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer - Fixed */}
-        <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50 flex-shrink-0">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-3 cursor-pointer border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200 text-sm sm:text-base"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={
-                !isSignedIn && !useCustomApiKey && !tempSettings.apiKey?.trim()
-              }
-              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex cursor-pointer items-center justify-center gap-2 transition-all duration-200 text-sm sm:text-base"
-            >
-              <Save className="w-4 h-4" />
-              Save Settings
-            </button>
-          </div>
+        {/* Centered Save Button - Fixed */}
+        <div className="border-t border-gray-200 p-6 bg-gray-50 flex-shrink-0">
+          <div className="flex flex-col items-center space-y-4">
+            {/* Loading State */}
+            {isLoading && (
+              <div className="text-center space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                  <span className="text-sm font-medium text-blue-700">
+                    {loadingStep}
+                  </span>
+                </div>
+                <div className="w-48 bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full transition-all duration-500 animate-pulse" 
+                       style={{ width: '70%' }}></div>
+                </div>
+              </div>
+            )}
 
-          {/* Mobile-specific help text */}
-          <div className="mt-3 sm:hidden">
-            <p className="text-xs text-gray-500 text-center">
-              Tip: Rotate your device to landscape for a better experience
-            </p>
+            {/* Action Buttons */}
+            <div className="flex gap-4 w-full max-w-md">
+              <button
+                onClick={onClose}
+                disabled={isLoading}
+                className="flex-1 px-6 py-3 cursor-pointer border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              >
+                Cancel
+              </button>
+              
+              <button
+                onClick={handleSave}
+                disabled={!isFormValid() || isLoading}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex cursor-pointer items-center justify-center gap-2 transition-all duration-200 text-sm sm:text-base shadow-lg hover:shadow-xl"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Settings
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Form Validation Message */}
+            {!isFormValid() && !isLoading && !saveSuccess && (
+              <div className="text-center space-y-1">
+                <p className="text-xs text-amber-600 font-medium">
+                  Please complete all required fields to save
+                </p>
+                <div className="text-xs text-gray-500 space-y-1">
+                  {!isSignedIn && !useCustomApiKey && !tempSettings.apiKey?.trim() && (
+                    <p>• API key is required</p>
+                  )}
+                  {!resumeText.trim() && !resumeFile && (
+                    <p>• Resume information is required</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Mobile-specific help text */}
+            <div className="sm:hidden">
+              <p className="text-xs text-gray-500 text-center">
+                Tip: Rotate your device to landscape for a better experience
+              </p>
+            </div>
           </div>
         </div>
       </div>

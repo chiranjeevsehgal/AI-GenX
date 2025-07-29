@@ -74,6 +74,6 @@ export const GEMINI_MODELS = [
 
 export const DEFAULT_SETTINGS = {
   apiKey: '',
-  model: 'gemini-2.0-flash',
+  model: 'gemini-2.0-flash-lite',
   resumeText: ''
 };
